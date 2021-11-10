@@ -228,6 +228,5 @@ lambdaorm drop
 Remove MySql database:
 
 ```sh
-cd db
 docker-compose down
 ```
