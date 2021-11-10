@@ -1,0 +1,37 @@
+app:
+  src: src
+  data: data
+  models: models
+  defaultDatabase: lab_01
+databases:
+  - name: mydb
+    dialect: mysql
+    schema: countries
+    connection:
+      host: localhost
+      port: 3306
+      user: test
+      password: test
+      database: test
+      multipleStatements: true
+      waitForConnections: true
+      connectionLimit: 10
+      queueLimit: 0
+schemas:
+  - name: countries
+    enums: []
+    entities:
+      - name: Countries
+        primaryKey: ["id"]
+        uniqueKey: ["name"]
+        properties:
+          - name: id
+            type: integer
+            nullable: false
+          - name: name
+            nullable: false
+          - name: alpha2
+            nullable: false
+            length: 2
+          - name: alpha3
+            length: 3
