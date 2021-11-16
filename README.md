@@ -1,6 +1,19 @@
 # Lab 01
 
-The goal of this lab is to use the Lambdaorm-cli commands
+In this laboratory we will see:
+
+- How to use the Lambdaorm-cli commands
+- how to create a project that uses lambda ORM
+- How to define a schema
+- how to run a bulckInsert from a file
+- how to export data from a schema
+- how to import data into a schema from a previously generated export file
+
+## Schema diagram
+
+The schema defines how the entities of the model are mapped with the database tables.
+
+![schema](schema.png)
 
 ## Pre requirements
 
@@ -33,6 +46,7 @@ docker-compose up -d
 Create user:
 
 ```sh
+docker exec lambdaorm-test  mysql --host 127.0.0.1 --port 3306 -uroot -proot -e "ALTER DATABASE test CHARACTER SET utf8 COLLATE utf8_general_ci;"
 docker exec lambdaorm-test  mysql --host 127.0.0.1 --port 3306 -uroot -proot -e "GRANT ALL ON *.* TO 'test'@'%' with grant option; FLUSH PRIVILEGES;"
 ```
 
@@ -70,7 +84,7 @@ app:
   src: src
   data: data
   models: models
-  defaultDatabase: lab_01
+  defaultDatabase: mydb
 databases:
   - name: mydb
     dialect: mysql
@@ -87,22 +101,40 @@ databases:
       queueLimit: 0
 schemas:
   - name: countries
-    enums: []
     entities:
       - name: Countries
-        primaryKey: ["id"]
+        primaryKey: ["iso3"]
         uniqueKey: ["name"]
+        properties:
+          - name: name
+            nullable: false
+          - name: iso3
+            nullable: false
+            length: 3
+        relations:
+          - name: states
+            type: manyToOne
+            composite: true
+            from: iso3
+            entity: States
+            to: countryCode
+      - name: States
+        primaryKey: ["id"]
+        uniqueKey: ["countryCode", "name"]
         properties:
           - name: id
             type: integer
             nullable: false
           - name: name
             nullable: false
-          - name: alpha2
+          - name: countryCode
             nullable: false
-            length: 2
-          - name: alpha3
             length: 3
+        relations:
+          - name: country
+            from: countryCode
+            entity: Countries
+            to: iso3
 ```
 
 ### Update
@@ -111,25 +143,40 @@ schemas:
 lambdaorm update
 ```
 
-the file model.ts will be created inside src/models/countries  with the following content
+the file model will be created inside src/models/countries/model.ts  with the following content
 
 ```ts
 /* eslint-disable no-use-before-define */
 // THIS FILE IS NOT EDITABLE, IS MANAGED BY LAMBDA ORM
 import { Queryable } from 'lambdaorm'
 export class Country {
-	id?: number
+	constructor () {
+		this.states = []
+	}
+
 	name?: string
-	alpha2?: string
-	alpha3?: string
+	iso3?: string
+	states: State[]
 }
 export interface QryCountry {
+	name: string
+	iso3: string
+	states: ManyToOne<State> & State[]
+}
+export class State {
+	id?: number
+	name?: string
+	countryCode?: string
+	country?: Country
+}
+export interface QryState {
 	id: number
 	name: string
-	alpha2: string
-	alpha3: string
+	countryCode: string
+	country: Country & OneToMany<Country> & Country
 }
 export let Countries: Queryable<QryCountry>
+export let States: Queryable<QryState>
 ```
 
 ### Sync
@@ -143,40 +190,48 @@ It will generate the table in database and a status file in the "data" folder, w
 ```json
 {
 	"schema": {
-		"name": "lab_01",
+		"name": "countries",
 		"entities": [
 			{
 				"name": "Country",
 				"mapping": "COUNTRY",
-				"primaryKey": [ "id" ],
+				"primaryKey": [ "iso3" ],
 				"uniqueKey": [ "name"	],
 				"properties": [
-					{	"name": "id", "mapping": "id", "type": "integer", "nullable": false },
 					{ "name": "name", "mapping": "name", "type": "string","length": 80, "nullable": false },
-					{ "name": "alpha2", "mapping": "alpha2", "type": "string", "length": 2, "nullable": false },
-					{ "name": "alpha3", "mapping": "alpha3", "type": "string", "length": 3, "nullable": false }
+					{ "name": "iso3", "mapping": "alpha3", "type": "string", "length": 3, "nullable": false }
 				],
-				"relations": [],
-				"indexes": []
+				"relations": [
+					{	"name": "states",	"type": "manyToOne","composite": true,"from": "iso3",	"entity": "States",	"to": "countryCode"	}
+				]
+			},
+			{
+				"name": "States",
+				"mapping": "States",
+				"primaryKey": ["id"],
+				"uniqueKey": ["countryCode","name"],
+				"properties": [
+					{	"name": "id",	"mapping": "id","type": "integer","nullable": false	},
+					{	"name": "name", "mapping": "name","type": "string", "length": 80,	"nullable": false	},
+					{	"name": "countryCode","mapping": "countryCode",	"type": "string","length": 3, "nullable": false	}
+				],
+				"relations": [
+					{	"name": "country","type": "oneToMany","composite": false, "from": "countryCode", "entity": "Countries", "to": "iso3" }
+				]
 			}
-		],
-		"enums": []
-	},
-	"mapping": {},
-	"pending": []
+		]
+	}
 }
 ```
 
 ### Popuplate Data
 
-At the root of the project we create a file called countries.json and add the records found in the following link
-
-[cuntries](https://github.com/stefangabos/world_countries/blob/master/data/en/countries.json)
+we will import data in the countries and states entities from the data.json file that is in the root of the project
 
 then we execute
 
 ```sh
-lambdaorm run -e "Countries.bulkInsert()" -d ./countries.json
+lambdaorm run -e "Countries.bulkInsert().include(p => p.states)" -d ./data.json
 ```
 
 ### Export Data
@@ -192,13 +247,14 @@ will generate a file called "mydb-export.json"
 Before importing we are going to delete all the records:
 
 ```sh
+lambdaorm run -e "States.deleteAll()"
 lambdaorm run -e "Countries.deleteAll()"
 ```
 
 We verify that there are no records left:
 
 ```sh
-lambdaorm run -e "Countries"
+lambdaorm run -e "Countries.page(1,10).include(p => p.states)"
 ```
 
 we import the file that we generate when exporting
@@ -210,7 +266,7 @@ lambdaorm import -s ./mydb-export.json
 We verify that the data was imported.
 
 ```sh
-lambdaorm run -e "Countries"
+lambdaorm run -e "Countries.page(1,10).include(p => p.states)"
 ```
 
 ### Drop
