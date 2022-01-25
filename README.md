@@ -80,15 +80,43 @@ In the creation of the project the schema was created but without any entity.
 Add the Country entity as seen in the following example
 
 ```yaml
-app:
-  src: src
-  data: data
-  models: models
-  defaultDatabase: mydb
-databases:
+entities:
+	- name: Countries
+		primaryKey: ["iso3"]
+		uniqueKey: ["name"]
+		properties:
+			- name: name
+				nullable: false
+			- name: iso3
+				nullable: false
+				length: 3
+		relations:
+			- name: states
+				type: manyToOne
+				composite: true
+				from: iso3
+				entity: States
+				to: countryCode
+	- name: States
+		primaryKey: ["id"]
+		uniqueKey: ["countryCode", "name"]
+		properties:
+			- name: id
+				type: integer
+				nullable: false
+			- name: name
+				nullable: false
+			- name: countryCode
+				nullable: false
+				length: 3
+		relations:
+			- name: country
+				from: countryCode
+				entity: Countries
+				to: iso3
+dataSources:
   - name: mydb
     dialect: mysql
-    schema: countries
     connection:
       host: localhost
       port: 3306
@@ -99,42 +127,6 @@ databases:
       waitForConnections: true
       connectionLimit: 10
       queueLimit: 0
-schemas:
-  - name: countries
-    entities:
-      - name: Countries
-        primaryKey: ["iso3"]
-        uniqueKey: ["name"]
-        properties:
-          - name: name
-            nullable: false
-          - name: iso3
-            nullable: false
-            length: 3
-        relations:
-          - name: states
-            type: manyToOne
-            composite: true
-            from: iso3
-            entity: States
-            to: countryCode
-      - name: States
-        primaryKey: ["id"]
-        uniqueKey: ["countryCode", "name"]
-        properties:
-          - name: id
-            type: integer
-            nullable: false
-          - name: name
-            nullable: false
-          - name: countryCode
-            nullable: false
-            length: 3
-        relations:
-          - name: country
-            from: countryCode
-            entity: Countries
-            to: iso3
 ```
 
 ### Update
@@ -189,38 +181,56 @@ It will generate the table in database and a status file in the "data" folder, w
 
 ```json
 {
-	"schema": {
-		"name": "countries",
-		"entities": [
-			{
-				"name": "Country",
-				"mapping": "COUNTRY",
-				"primaryKey": [ "iso3" ],
-				"uniqueKey": [ "name"	],
-				"properties": [
-					{ "name": "name", "mapping": "name", "type": "string","length": 80, "nullable": false },
-					{ "name": "iso3", "mapping": "alpha3", "type": "string", "length": 3, "nullable": false }
-				],
-				"relations": [
-					{	"name": "states",	"type": "manyToOne","composite": true,"from": "iso3",	"entity": "States",	"to": "countryCode"	}
-				]
-			},
-			{
-				"name": "States",
-				"mapping": "States",
-				"primaryKey": ["id"],
-				"uniqueKey": ["countryCode","name"],
-				"properties": [
-					{	"name": "id",	"mapping": "id","type": "integer","nullable": false	},
-					{	"name": "name", "mapping": "name","type": "string", "length": 80,	"nullable": false	},
-					{	"name": "countryCode","mapping": "countryCode",	"type": "string","length": 3, "nullable": false	}
-				],
-				"relations": [
-					{	"name": "country","type": "oneToMany","composite": false, "from": "countryCode", "entity": "Countries", "to": "iso3" }
-				]
-			}
-		]
-	}
+	"entities": [
+		{
+			"name": "Countries",
+			"primaryKey": ["iso3"],
+			"uniqueKey": ["name"],
+			"properties": [
+				{	"name": "name","nullable": false,"type": "string","length": 80,"mapping": "name"},
+				{	"name": "iso3","nullable": false,"length": 3,"type": "string","mapping": "iso3"}
+			],
+			"relations": [
+				{	"name": "states",	"type": "manyToOne","composite": true,"from": "iso3",	"entity": "States",	"to": "countryCode"	}
+			],
+			"mapping": "Countries"
+		},
+		{
+			"name": "States",
+			"primaryKey": ["id"	],
+			"uniqueKey": ["countryCode","name"
+			],
+			"properties": [
+				{	"name": "id",	"type": "integer","nullable": false,"mapping": "id"	},
+				{
+					"name": "name",
+					"nullable": false,
+					"type": "string",
+					"length": 80,
+					"mapping": "name"
+				},
+				{
+					"name": "countryCode",
+					"nullable": false,
+					"length": 3,
+					"type": "string",
+					"mapping": "countryCode"
+				}
+			],
+			"relations": [
+				{
+					"name": "country",
+					"from": "countryCode",
+					"entity": "Countries",
+					"to": "iso3",
+					"type": "oneToMany"
+				}
+			],
+			"mapping": "States"
+		}
+	],
+	"mappingData": {},
+	"pendingData": []
 }
 ```
 
@@ -260,7 +270,7 @@ lambdaorm run -e "Countries.page(1,10).include(p => p.states)"
 we import the file that we generate when exporting
 
 ```sh
-lambdaorm import -s ./mydb-export.json
+lambdaorm import -d ./default-export.json
 ```
 
 We verify that the data was imported.
