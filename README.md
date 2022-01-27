@@ -13,7 +13,7 @@ In this laboratory we will see:
 
 The schema defines how the entities of the model are mapped with the database tables.
 
-![schema](schema.png)
+![schema](schema.svg)
 
 ## Pre requirements
 
