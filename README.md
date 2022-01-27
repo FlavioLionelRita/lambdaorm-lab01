@@ -81,42 +81,43 @@ Add the Country entity as seen in the following example
 
 ```yaml
 entities:
-	- name: Countries
-		primaryKey: ["iso3"]
-		uniqueKey: ["name"]
-		properties:
-			- name: name
-				nullable: false
-			- name: iso3
-				nullable: false
-				length: 3
-		relations:
-			- name: states
-				type: manyToOne
-				composite: true
-				from: iso3
-				entity: States
-				to: countryCode
-	- name: States
-		primaryKey: ["id"]
-		uniqueKey: ["countryCode", "name"]
-		properties:
-			- name: id
-				type: integer
-				nullable: false
-			- name: name
-				nullable: false
-			- name: countryCode
-				nullable: false
-				length: 3
-		relations:
-			- name: country
-				from: countryCode
-				entity: Countries
-				to: iso3
+  - name: Countries
+    primaryKey: ["iso3"]
+    uniqueKey: ["name"]
+    properties:
+      - name: name
+        nullable: false
+      - name: iso3
+        nullable: false
+        length: 3
+    relations:
+      - name: states
+        type: manyToOne
+        composite: true
+        from: iso3
+        entity: States
+        to: countryCode
+  - name: States
+    primaryKey: ["id"]
+    uniqueKey: ["countryCode", "name"]
+    properties:
+      - name: id
+        type: integer
+        nullable: false
+      - name: name
+        nullable: false
+      - name: countryCode
+        nullable: false
+        length: 3
+    relations:
+      - name: country
+        from: countryCode
+        entity: Countries
+        to: iso3
 dataSources:
   - name: mydb
     dialect: mysql
+    schema: countries
     connection:
       host: localhost
       port: 3306
@@ -181,52 +182,38 @@ It will generate the table in database and a status file in the "data" folder, w
 
 ```json
 {
-	"entities": [
+	"mappings": [
 		{
-			"name": "Countries",
-			"primaryKey": ["iso3"],
-			"uniqueKey": ["name"],
-			"properties": [
-				{	"name": "name","nullable": false,"type": "string","length": 80,"mapping": "name"},
-				{	"name": "iso3","nullable": false,"length": 3,"type": "string","mapping": "iso3"}
-			],
-			"relations": [
-				{	"name": "states",	"type": "manyToOne","composite": true,"from": "iso3",	"entity": "States",	"to": "countryCode"	}
-			],
-			"mapping": "Countries"
-		},
-		{
-			"name": "States",
-			"primaryKey": ["id"	],
-			"uniqueKey": ["countryCode","name"
-			],
-			"properties": [
-				{	"name": "id",	"type": "integer","nullable": false,"mapping": "id"	},
+			"name": "default",
+			"entities": [
 				{
-					"name": "name",
-					"nullable": false,
-					"type": "string",
-					"length": 80,
-					"mapping": "name"
+					"name": "Countries",
+					"mapping": "Countries",
+					"primaryKey": ["iso3"],
+					"uniqueKey": ["name"],
+					"properties": [
+						{	"name": "name",	"nullable": false,"type": "string","length": 80,"mapping": "name"	},
+						{	"name": "iso3",	"nullable": false,"length": 3,"type": "string","mapping": "iso3" }
+					],
+					"relations": [
+						{ "name": "states", "type": "manyToOne", "composite": true, "from": "iso3", "entity": "States",	"to": "countryCode"	}
+					]					
 				},
 				{
-					"name": "countryCode",
-					"nullable": false,
-					"length": 3,
-					"type": "string",
-					"mapping": "countryCode"
+					"name": "States",
+					"mapping": "States",
+					"primaryKey": ["id"],
+					"uniqueKey": ["countryCode","name"],
+					"properties": [
+						{ "name": "id", "type": "integer", "nullable": false,	"mapping": "id"	},
+						{ "name": "name",	"nullable": false,"type": "string","length": 80,"mapping": "name"	},
+						{ "name": "countryCode", "nullable": false, "length": 3, "type": "string", "mapping": "countryCode" }
+					],
+					"relations": [
+						{ "name": "country", "from": "countryCode", "entity": "Countries", "to": "iso3", "type": "oneToMany" }
+					]					
 				}
-			],
-			"relations": [
-				{
-					"name": "country",
-					"from": "countryCode",
-					"entity": "Countries",
-					"to": "iso3",
-					"type": "oneToMany"
-				}
-			],
-			"mapping": "States"
+			]
 		}
 	],
 	"mappingData": {},
